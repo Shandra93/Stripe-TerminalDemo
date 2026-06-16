@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stripe Terminal Checkout</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div id="toastStack" class="toast-stack" aria-live="polite" aria-atomic="true"></div>
+
+  <header class="topbar">
+    <div class="hero-shell">
+      <div class="hero-copy">
+        <div class="eyebrow">Stripe Terminal Demo</div>
+        <h1>Checkout Command Center</h1>
+        <p class="subtitle">
+          A faster, smoother operator flow for products, readers, customers, payment authorization,
+          tip adjustment, and capture.
+        </p>
+      </div>
+
+      <div class="hero-summary">
+        <div class="hero-stat">
+          <span>Current mode</span>
+          <strong id="modeBox">—</strong>
+        </div>
+        <div class="hero-stat">
+          <span>Applied account</span>
+          <strong id="accountBox">Platform</strong>
+        </div>
+        <div class="hero-stat">
+          <span>Payment status</span>
+          <strong id="paymentStatusBox">—</strong>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-layout">
+    <section class="main-content">
+      <section class="panel hero-panel">
+        <div class="hero-panel-top">
+          <div>
+            <div class="section-kicker">Guided flow</div>
+            <h2>Move through checkout step by step</h2>
+            <p class="helper-text">
+              The app will keep the current cart, selected reader, customer, and payment state visible at all times.
+            </p>
+          </div>
+          <button id="quickCheckoutBtn" class="btn primary xl">Start quick checkout</button>
+        </div>
+
+        <div class="progress-grid" id="progressGrid">
+          <div class="progress-step" id="progressProducts">
+            <span class="progress-dot"></span>
+            <div>
+              <strong>1. Products</strong>
+              <small>Add items to cart</small>
+            </div>
+          </div>
+
+          <div class="progress-step" id="progressReader">
+            <span class="progress-dot"></span>
+            <div>
+              <strong>2. Reader</strong>
+              <small>Select a terminal</small>
+            </div>
+          </div>
+
+          <div class="progress-step" id="progressCustomer">
+            <span class="progress-dot"></span>
+            <div>
+              <strong>3. Customer</strong>
+              <small>Optional</small>
+            </div>
+          </div>
+
+          <div class="progress-step" id="progressPayment">
+            <span class="progress-dot"></span>
+            <div>
+              <strong>4. Payment</strong>
+              <small>Create and authorize</small>
+            </div>
+          </div>
+
+          <div class="progress-step" id="progressDone">
+            <span class="progress-dot"></span>
+            <div>
+              <strong>5. Done</strong>
+              <small>Capture complete</small>
+            </div>
+          </div>
+        </div>
+
+        <div class="next-step-card">
+          <div class="next-step-copy">
+            <span class="next-step-label">Recommended next action</span>
+            <strong id="smartHint">Add products to begin.</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <div class="step-badge">Step 1</div>
+            <h2>Products</h2>
+          </div>
+          <button id="reloadProductsBtn" class="btn secondary">Reload products</button>
+        </div>
+
+        <div class="toolbar">
+          <input id="productSearchInput" placeholder="Search products by name, category, or description" />
+        </div>
+
+        <p class="helper-text">Click a product card to add it to the cart.</p>
+
+        <details class="helper-box">
+          <summary>Create a new product</summary>
+          <div class="grid two">
+            <input id="newProductName" placeholder="Product name" />
+            <input id="newProductAmount" type="number" value="500" placeholder="Amount in cents" />
+            <input id="newProductDescription" placeholder="Description" />
+            <input id="newProductCategory" placeholder="Category" />
+            <input id="newProductCurrency" value="usd" placeholder="Currency" />
+            <input id="newProductImageUrl" placeholder="Image URL (optional)" />
+          </div>
+          <div class="spacer-top">
+            <button id="createProductBtn" class="btn secondary">Create product</button>
+          </div>
+        </details>
+
+        <div id="productList" class="product-grid"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <div class="step-badge">Step 2</div>
+            <h2>Reader</h2>
+          </div>
+        </div>
+
+        <p class="helper-text">
+          Pick an existing reader or create a simulated one for testing.
+        </p>
+
+        <div class="grid two">
+          <input id="readerLocationId" placeholder="Location ID (optional)" />
+          <input id="readerSearchQuery" placeholder="Search by label, serial, or reader ID" />
+        </div>
+
+        <div class="button-row">
+          <button id="listReadersBtn" class="btn secondary">List readers</button>
+          <button id="searchReadersBtn" class="btn secondary">Search readers</button>
+          <button id="createLocationBtn" class="btn ghost">Create demo location</button>
+        </div>
+
+        <details class="helper-box">
+          <summary>Create simulated reader</summary>
+          <div class="grid two">
+            <input id="readerLabel" value="Front Desk Demo Reader" placeholder="Reader label" />
+            <input id="readerRegistrationCode" value="simulated-wpe" placeholder="Registration code" />
+          </div>
+          <div class="spacer-top">
+            <button id="createReaderBtn" class="btn primary">Create simulated reader</button>
+          </div>
+        </details>
+
+        <div id="readerList" class="stack-list"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <div class="step-badge">Step 3</div>
+            <h2>Customer</h2>
+          </div>
+        </div>
+
+        <p class="helper-text">
+          Optional. Leave blank for guest checkout, or load/create a customer.
+        </p>
+
+        <div class="grid two">
+          <input id="customerName" placeholder="Customer name" />
+          <input id="customerEmail" placeholder="Customer email" />
+        </div>
+
+        <div class="button-row">
+          <button id="findCustomerBtn" class="btn secondary">Find customer</button>
+          <button id="createCustomerBtn" class="btn secondary">Create customer</button>
+        </div>
+
+        <div id="customerList" class="stack-list"></div>
+      </section>
+
+      <section class="panel payment-panel">
+        <div class="panel-head">
+          <div>
+            <div class="step-badge">Step 4</div>
+            <h2>Payment</h2>
+          </div>
+        </div>
+
+        <div class="payment-grid">
+          <div class="action-card">
+            <div class="action-card-head">
+              <h3>Create & send</h3>
+              <p>Prepare the payment and push it to the selected reader.</p>
+            </div>
+
+            <div class="button-row">
+              <button id="createPiBtn" class="btn secondary">Create payment</button>
+              <button id="sendToReaderBtn" class="btn secondary">Send to reader</button>
+              <button id="refreshPiBtn" class="btn ghost">Refresh status</button>
+            </div>
+          </div>
+
+          <div class="action-card">
+            <div class="action-card-head">
+              <h3>Reader interaction</h3>
+              <p>Use this when testing with a simulated reader.</p>
+            </div>
+
+            <div class="grid two">
+              <div>
+                <label class="field-label" for="presentCardNumber">Simulated test card</label>
+                <input id="presentCardNumber" value="4242424242424242" />
+              </div>
+              <div>
+                <label class="field-label" for="tipAmountInput">Tip amount in cents</label>
+                <input id="tipAmountInput" type="number" value="500" />
+              </div>
+            </div>
+
+            <div class="button-row">
+              <button id="presentCardBtn" class="btn secondary">Present test card</button>
+              <button id="addTipBtn" class="btn secondary">Add tip</button>
+            </div>
+          </div>
+
+          <div class="action-card">
+            <div class="action-card-head">
+              <h3>Finish</h3>
+              <p>Complete or cancel the active payment.</p>
+            </div>
+
+            <div class="button-row">
+              <button id="captureBtn" class="btn success">Capture payment</button>
+              <button id="cancelBtn" class="btn danger">Cancel payment</button>
+              <button id="resetSaleBtn" class="btn ghost">New sale</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <aside class="right-rail">
+      <div class="right-rail-inner">
+        <section class="panel rail-panel account-panel">
+          <div class="rail-head">
+            <h3>Connected account</h3>
+          </div>
+
+          <label class="field-label" for="connectedAccountId">Connected account ID</label>
+          <div class="account-row">
+            <input id="connectedAccountId" placeholder="acct_..." />
+            <button id="applyAccountBtn" class="btn primary">Apply</button>
+          </div>
+
+          <div class="account-note">
+            Leave blank to use the platform account.
+          </div>
+
+          <div class="account-grid">
+            <div class="mini-info">
+              <span>Applied</span>
+              <strong id="accountBoxRail">Platform</strong>
+            </div>
+            <div class="mini-info">
+              <span>Draft</span>
+              <strong id="accountDraftBox">Platform</strong>
+            </div>
+            <div class="mini-info">
+              <span>Resolved account</span>
+              <strong id="resolvedAccountBox">—</strong>
+            </div>
+            <div class="mini-info">
+              <span>Mode</span>
+              <strong id="modeBoxRail">—</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel rail-panel">
+          <div class="rail-head">
+            <h3>Live status</h3>
+            <span class="status-pill" id="statusPill">Idle</span>
+          </div>
+
+          <div class="status-card" id="statusCard" data-tone="neutral">
+            <div class="status-label">Current step</div>
+            <div class="status-title" id="stageTitle">Waiting</div>
+            <div class="status-text" id="stageText">Add products to begin.</div>
+          </div>
+
+          <div class="summary-grid">
+            <div class="summary-item">
+              <span>Reader</span>
+              <strong id="readerBox">—</strong>
+            </div>
+            <div class="summary-item">
+              <span>Customer</span>
+              <strong id="customerBox">—</strong>
+            </div>
+            <div class="summary-item">
+              <span>Payment ID</span>
+              <strong id="paymentIntentBox">—</strong>
+            </div>
+            <div class="summary-item">
+              <span>Status</span>
+              <strong id="paymentStatusBoxRail">—</strong>
+            </div>
+            <div class="summary-item">
+              <span>Base</span>
+              <strong id="baseAmountBox">—</strong>
+            </div>
+            <div class="summary-item">
+              <span>Tip</span>
+              <strong id="tipAmountBox">—</strong>
+            </div>
+            <div class="summary-item">
+              <span>Total</span>
+              <strong id="totalAmountBox">—</strong>
+            </div>
+            <div class="summary-item">
+              <span>Location</span>
+              <strong id="locationBox">—</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel rail-panel">
+          <div class="rail-head">
+            <h3>Cart</h3>
+            <button id="clearCartBtn" class="btn tiny danger">Clear</button>
+          </div>
+
+          <div class="cart-summary-row">
+            <div class="mini-stat">
+              <span>Items</span>
+              <strong id="cartCount">0</strong>
+            </div>
+            <div class="mini-stat">
+              <span>Total</span>
+              <strong id="cartTotal">$0.00</strong>
+            </div>
+          </div>
+
+          <div id="rightCartList" class="mini-cart-list"></div>
+        </section>
+
+        <section class="panel rail-panel">
+          <div class="rail-head">
+            <h3>Console</h3>
+          </div>
+
+          <div class="console-tabs">
+            <button id="consoleTabLog" class="console-tab is-active" type="button">Activity log</button>
+            <button id="consoleTabApi" class="console-tab" type="button">Last API response</button>
+            <button id="clearLogBtn" class="btn tiny ghost push-right">Clear</button>
+          </div>
+
+          <div id="consolePanelLog" class="console-panel">
+            <div id="logBox" class="log-box"></div>
+          </div>
+
+          <div id="consolePanelApi" class="console-panel" hidden>
+            <pre id="apiResponse" class="api-box">{}</pre>
+          </div>
+        </section>
+      </div>
+    </aside>
+  </main>
+
+  <script src="/script.js" defer></script>
+</body>
+</html>
